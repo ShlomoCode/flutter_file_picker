@@ -18,6 +18,7 @@ final class IOSFilePickerHandler: NSObject,
     private var eventSink: FlutterEventSink?
     private var allowMultipleSelection = false
     private var assetRepresentationMode = PHPickerConfiguration.AssetRepresentationMode.automatic
+    private var orderedSelection = true
     private var isDirectoryPicker = false
     private var isFileAndDirectoryPicker = false
     private var isSaveFile = false
@@ -68,6 +69,7 @@ final class IOSFilePickerHandler: NSObject,
             (arguments["allowMultipleSelection"] as? Bool) ?? false
         assetRepresentationMode = resolveAssetRepresentationMode(
             arguments["assetRepresentationMode"] as? String)
+        orderedSelection = (arguments["orderedSelection"] as? Bool) ?? true
 
         switch call.method {
         case "any":
@@ -189,8 +191,27 @@ final class IOSFilePickerHandler: NSObject,
         finishCurrentRequest(nil)
     }
 
-    func presentationControllerWillDismiss(_: UIPresentationController) {
-        finishCurrentRequest(nil)
+    func presentationControllerWillDismiss(
+        _ presentationController: UIPresentationController
+    ) {
+        // UIKit calls this as soon as the user starts pulling the sheet down,
+        // even if they let it spring back, so finishing right away would
+        // report a cancellation while the picker is still open and drop the
+        // later selection. Wait for the dismissal to end instead. A fast swipe
+        // may never reach presentationControllerDidDismiss, so this still
+        // finishes the request when the dismissal completes.
+        guard
+            let coordinator = presentationController.presentedViewController
+                .transitionCoordinator
+        else {
+            finishCurrentRequest(nil)
+            return
+        }
+        coordinator.animate(alongsideTransition: nil) { [weak self] context in
+            if !context.isCancelled {
+                self?.finishCurrentRequest(nil)
+            }
+        }
     }
 
     func presentationControllerDidDismiss(
@@ -248,7 +269,9 @@ final class IOSFilePickerHandler: NSObject,
         var configuration = PHPickerConfiguration(photoLibrary: .shared())
         configuration.preferredAssetRepresentationMode = assetRepresentationMode
         configuration.selectionLimit = allowsMultipleSelection ? 0 : 1
-        if #available(iOS 15.0, *) {
+        // Ordered selection keeps the results in the order the user picked
+        // them, but disables swipe to select, so apps can opt out.
+        if orderedSelection, #available(iOS 15.0, *) {
             configuration.selection = .ordered
         }
 
