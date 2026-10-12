@@ -4,6 +4,7 @@
 - **BREAKING CHANGE**: Requires Flutter 3.41, Dart 3.11, Android SDK 24 and macOS 10.15.
 - **BREAKING CHANGE**: Removed `withData`, `withReadStream` and `readSequential` from `FilePickerWebOptions`.
 - `getDirectoryPath()` and `saveFile()` now take `darwinOptions`, so `DarwinOptions.acceptLabel` also sets their confirm button text on macOS. [#1861](https://github.com/vicajilau/flutter_file_picker/issues/1861)
+- **BREAKING CHANGE**: Removed `FilePicker.skipEntitlementsChecks()`. Use `FilePickerDarwin.skipEntitlementsChecks()` instead. [#2224](https://github.com/vicajilau/flutter_file_picker/issues/2224)
 
 ## 13.1.0
 

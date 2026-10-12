@@ -78,6 +78,11 @@ The iOS and macOS native implementations live under the shared Darwin source tre
    * **v13**: `FilePickerWebOptions(withData: false, withReadStream: true, cancelUploadOnWindowBlur: false)`
    * **v14**: `FilePickerWebOptions(cancelUploadOnWindowBlur: false)`
 
+4. **`FilePicker.skipEntitlementsChecks()` Removed**:
+   * Platform specific APIs now only live in their platform package. Call it on `FilePickerDarwin`, from `package:file_picker_darwin`:
+   * **v13**: `await FilePicker.skipEntitlementsChecks();`
+   * **v14**: `if (FilePickerPlatform.instance case final FilePickerDarwin darwin) await darwin.skipEntitlementsChecks();`
+
 ## Migrating to v13
 
 1. **`PlatformFile.length()` Returns `Future<int?>`**:
