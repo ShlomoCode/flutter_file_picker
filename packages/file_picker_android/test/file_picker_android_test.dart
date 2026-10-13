@@ -78,6 +78,63 @@ void main() {
       },
     );
 
+    group('retrieveLostData', () {
+      late FilePickerAndroid picker;
+
+      void respondWith(Object? response) {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(picker.methodChannel, (call) async {
+              expect(call.method, 'retrieveLostData');
+              return response;
+            });
+      }
+
+      setUp(() => picker = FilePickerAndroid());
+      tearDown(
+        () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(picker.methodChannel, null),
+      );
+
+      test('returns null when nothing was lost', () async {
+        respondWith(null);
+        expect(await picker.retrieveLostData(), isNull);
+      });
+
+      test('returns the lost files', () async {
+        respondWith({
+          'files': [
+            {'path': '/cache/a.pdf', 'name': 'a.pdf', 'size': 3},
+            {'path': '/cache/b.png', 'name': 'b.png', 'size': 5},
+          ],
+        });
+
+        final lost = await picker.retrieveLostData();
+
+        expect(lost?.exception, isNull);
+        expect(lost?.files.map((f) => f.path), [
+          '/cache/a.pdf',
+          '/cache/b.png',
+        ]);
+        expect(lost?.files.first.lengthSync(), 3);
+      });
+
+      test('returns the error raised while processing', () async {
+        respondWith({
+          'errorCode': 'out_of_memory',
+          'errorMessage': 'Selected files are too large to process.',
+        });
+
+        final lost = await picker.retrieveLostData();
+
+        expect(lost?.files, isEmpty);
+        expect(lost?.exception?.code, 'out_of_memory');
+        expect(
+          lost?.exception?.message,
+          'Selected files are too large to process.',
+        );
+      });
+    });
+
     test('AndroidPlatformFile throws ArgumentError on empty path and uri', () {
       expect(() => AndroidPlatformFile.fromMap({}), throwsArgumentError);
     });

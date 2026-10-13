@@ -281,6 +281,25 @@ object FileUtils {
         }
         this?.androidSafOptions = androidSafOptions
 
+        // Persist the request so its result can still be delivered through
+        // retrieveLostData if Android destroys the activity while the picker
+        // is open. Directory picks are not recoverable.
+        this?.let { delegate ->
+            val context = delegate.activity.applicationContext
+            if (type != null && type != "dir") {
+                LostDataStore.saveRequest(
+                    context,
+                    LostDataStore.PendingRequest(
+                        type,
+                        delegate.compressionQuality,
+                        androidSafOptions
+                    )
+                )
+            } else {
+                LostDataStore.clearRequest(context)
+            }
+        }
+
         this?.startFileExplorer()
     }
 

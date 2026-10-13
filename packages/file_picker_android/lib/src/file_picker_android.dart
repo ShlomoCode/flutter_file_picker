@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import 'android_platform_file.dart';
 import 'file_picker_android_options.dart';
+import 'lost_file_picker_result.dart';
 
 /// An implementation of [FilePickerPlatform] for Android.
 class FilePickerAndroid extends FilePickerPlatform {
@@ -181,6 +182,43 @@ class FilePickerAndroid extends FilePickerPlatform {
       }
     }
     return null;
+  }
+
+  /// Recovers the files picked before Android destroyed the activity, or the
+  /// whole app process, while the file picker was open, or `null` if there is
+  /// nothing to recover.
+  ///
+  /// Only `pickFile()` and `pickFiles()` can be recovered. The outcome is
+  /// delivered once, and only the most recent lost pick is kept. Call it
+  /// early, for example in the `initState` of the screen that started the
+  /// pick, which a `RestorationScope` can bring back:
+  ///
+  /// ```dart
+  /// if (FilePickerPlatform.instance case final FilePickerAndroid android) {
+  ///   final lost = await android.retrieveLostData();
+  /// }
+  /// ```
+  Future<LostFilePickerResult?> retrieveLostData() async {
+    final Map<Object?, Object?>? data = await methodChannel
+        .invokeMapMethod<Object?, Object?>('retrieveLostData');
+    if (data == null) return null;
+
+    if (data['errorCode'] case final String code) {
+      return LostFilePickerResult(
+        exception: PlatformException(
+          code: code,
+          message: data['errorMessage'] as String?,
+        ),
+      );
+    }
+
+    final files = (data['files'] as List<Object?>?) ?? const [];
+    return LostFilePickerResult(
+      files: [
+        for (final file in files.whereType<Map<Object?, Object?>>())
+          AndroidPlatformFile.fromMap(file),
+      ],
+    );
   }
 
   @override
