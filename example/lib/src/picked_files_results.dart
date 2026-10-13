@@ -1,4 +1,5 @@
 import 'package:file_picker/file_picker.dart';
+import 'package:file_picker_darwin/file_picker_darwin.dart';
 import 'package:android_file_picker/android_file_picker.dart';
 import 'package:flutter/material.dart';
 
@@ -36,6 +37,9 @@ class PickedFilesResults extends StatelessWidget {
         // On web, PlatformFile.path is always null (web files have no
         // filesystem path), so fall back to the blob/data URI instead.
         final path = pickedFile.path ?? pickedFile.uri.toString();
+        final assetIdentifier = pickedFile is DarwinPlatformFile
+            ? pickedFile.assetIdentifier
+            : null;
 
         return ListTile(
           leading: Text(
@@ -43,7 +47,9 @@ class PickedFilesResults extends StatelessWidget {
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
           ),
           title: Text('File path (SAF Grant: ${androidPlatformFile != null}):'),
-          subtitle: Text(path),
+          subtitle: Text(
+            assetIdentifier == null ? path : '$path\nAsset: $assetIdentifier',
+          ),
           trailing: trailingWidget,
         );
       },

@@ -207,6 +207,28 @@ select when the selection order does not matter. It only applies to
 `FileType.image`, `FileType.video` and `FileType.media`, the types that use the
 photo library picker.
 
+#### iOS photo-library assets without a copy
+
+```dart
+List<PlatformFile> files = await FilePicker.pickFiles(
+  type: FileType.video,
+  darwinOptions: const DarwinOptions(copyMedia: false),
+);
+final assetIdentifiers = [
+  for (final file in files)
+    if (file case DarwinPlatformFile(:final assetIdentifier?)) assetIdentifier,
+];
+// Open the original assets by their identifiers, for example with photo_manager.
+```
+
+Media picked from the iOS photo library is copied into the app's temporary
+directory, and each file also carries its photo library `assetIdentifier`
+(`DarwinPlatformFile` comes from `package:file_picker_darwin`). Set
+`copyMedia: false` to skip the copy, for example for large videos: the files
+then only reference the original assets, which can be opened by their
+identifier with photo library access, and reading them through the returned
+file throws an `UnsupportedError`.
+
 #### Confirm button text
 
 ```dart

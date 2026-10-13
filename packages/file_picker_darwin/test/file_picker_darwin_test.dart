@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:cross_file/cross_file.dart';
+import 'package:cross_file_io/cross_file_io.dart';
 import 'package:file_picker_darwin/file_picker_darwin.dart';
 import 'package:file_picker_platform_interface/file_picker_platform_interface.dart';
 import 'package:flutter/foundation.dart';
@@ -143,6 +145,116 @@ void main() {
 
       await picker.getDirectoryPath();
       expect(receivedLabels['dir'], isNull);
+    });
+
+    test('pickFile and pickFiles send copyMedia', () async {
+      final picker = FilePickerDarwin();
+      bool? copyMedia;
+
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(picker.methodChannel, (call) async {
+            copyMedia = (call.arguments as Map)['copyMedia'] as bool?;
+            return <Map<Object?, Object?>>[];
+          });
+      addTearDown(() {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(picker.methodChannel, null);
+      });
+
+      await picker.pickFiles(type: FileType.media);
+      expect(copyMedia, isTrue);
+
+      await picker.pickFiles(
+        type: FileType.media,
+        darwinOptions: const DarwinOptions(copyMedia: false),
+      );
+      expect(copyMedia, isFalse);
+
+      await picker.pickFile(type: FileType.media);
+      expect(copyMedia, isTrue);
+
+      await picker.pickFile(
+        type: FileType.media,
+        darwinOptions: const DarwinOptions(copyMedia: false),
+      );
+      expect(copyMedia, isFalse);
+    });
+
+    group('DarwinPlatformFile asset identifier', () {
+      test('is kept alongside a copied file', () {
+        final file = DarwinPlatformFile.fromMap({
+          'path': '/tmp/IMG_0001.HEIC',
+          'name': 'IMG_0001.HEIC',
+          'assetIdentifier': 'ABC-123/L0/001',
+        });
+
+        expect(file.assetIdentifier, 'ABC-123/L0/001');
+        expect(file.uri.scheme, 'file');
+      });
+
+      test('is null for files outside the photo library', () {
+        final file = DarwinPlatformFile.fromMap({'path': '/tmp/a.pdf'});
+        expect(file.assetIdentifier, isNull);
+      });
+
+      test('reads through its own XFile even with a ph URI', () async {
+        CrossFileIO.registerWith();
+        final dir = Directory.systemTemp.createTempSync('file_picker_test');
+        addTearDown(() => dir.deleteSync(recursive: true));
+        final copy = File('${dir.path}/IMG_0001.HEIC')
+          ..writeAsBytesSync([1, 2, 3]);
+
+        final file = DarwinPlatformFile(
+          name: 'IMG_0001.HEIC',
+          uri: Uri.parse('ph:///ABC-123/L0/001'),
+          assetIdentifier: 'ABC-123/L0/001',
+          xFile: XFile.fileSystem(path: copy.path),
+        );
+
+        expect(await file.readAsBytes(), [1, 2, 3]);
+        expect(await file.length(), 3);
+      });
+
+      test('appears in toString only when set', () {
+        final asset = DarwinPlatformFile.fromMap({
+          'uri': 'ph:///ABC-123/L0/001',
+          'name': 'IMG_0001.HEIC',
+          'assetIdentifier': 'ABC-123/L0/001',
+        });
+        final file = DarwinPlatformFile.fromMap({'path': '/tmp/a.pdf'});
+
+        expect(asset.toString(), contains('assetIdentifier: ABC-123/L0/001'));
+        expect(file.toString(), isNot(contains('assetIdentifier')));
+      });
+
+      test('references the asset without a readable copy', () async {
+        final file = DarwinPlatformFile.fromMap({
+          'uri': 'ph:///ABC-123/L0/001',
+          'name': 'IMG_0001.HEIC',
+          'assetIdentifier': 'ABC-123/L0/001',
+        });
+
+        expect(file.uri.scheme, 'ph');
+        expect(file.uri.path, '/ABC-123/L0/001');
+        expect(file.path, isNull);
+        expect(file.name, 'IMG_0001.HEIC');
+        expect(file.assetIdentifier, 'ABC-123/L0/001');
+        expect(await file.length(), isNull);
+        final throwsAssetReferenceError = throwsA(
+          isA<UnsupportedError>().having(
+            (e) => e.message,
+            'message',
+            'This file was picked with DarwinOptions(copyMedia: false), so it '
+                'has no readable copy. Open the original asset by its '
+                'assetIdentifier instead.',
+          ),
+        );
+        await expectLater(file.readAsBytes(), throwsAssetReferenceError);
+        await expectLater(
+          file.readAsByteStream().toList(),
+          throwsAssetReferenceError,
+        );
+      });
     });
 
     test('pickFile and pickFiles send orderedSelection', () async {

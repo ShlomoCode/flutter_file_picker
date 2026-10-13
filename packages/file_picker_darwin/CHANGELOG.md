@@ -3,6 +3,10 @@
 - **BREAKING CHANGE**: Migrated to `cross_file` 0.4.0. `PlatformFile.xFile` now returns the new `XFile` API. Requires Flutter 3.41, Dart 3.11 and macOS 10.15. [#2224](https://github.com/vicajilau/flutter_file_picker/issues/2224)
 - `DarwinOptions.acceptLabel` now also sets the confirm button text of `getDirectoryPath()` and `saveFile()` on macOS. [#1861](https://github.com/vicajilau/flutter_file_picker/issues/1861)
 
+## 2.3.0
+
+- Added `DarwinPlatformFile.assetIdentifier` for media picked from the iOS photo library, and support for `DarwinOptions(copyMedia: false)` to skip the copy. [#2245](https://github.com/vicajilau/flutter_file_picker/issues/2245)
+
 ## 2.2.0
 
 - Added support for `DarwinOptions.orderedSelection`. Setting it to `false` restores swipe to select in the iOS photo library picker, which ordered selection disables. [#2241](https://github.com/vicajilau/flutter_file_picker/issues/2241)

@@ -51,4 +51,14 @@ void main() {
       );
     });
   });
+
+  group('DarwinOptions.copyMedia', () {
+    test('defaults to true', () {
+      expect(const DarwinOptions().copyMedia, isTrue);
+    });
+
+    test('can be disabled', () {
+      expect(const DarwinOptions(copyMedia: false).copyMedia, isFalse);
+    });
+  });
 }

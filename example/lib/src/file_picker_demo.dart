@@ -36,6 +36,7 @@ class _FilePickerDemoState extends State<FilePickerDemo> {
   bool _userAborted = false;
   bool _multiPick = false;
   bool _orderedSelection = true;
+  bool _copyMedia = true;
   bool _safPersist = false;
   bool _safReadWrite = false;
   bool _supportsSafOptions = false;
@@ -115,6 +116,7 @@ class _FilePickerDemoState extends State<FilePickerDemo> {
           darwinOptions: DarwinOptions(
             acceptLabel: _acceptLabelFromInput(),
             orderedSelection: _orderedSelection,
+            copyMedia: _copyMedia,
           ),
           androidOptions:
               _androidSafOptionsFromFlags() ?? const AndroidOptions(),
@@ -138,6 +140,7 @@ class _FilePickerDemoState extends State<FilePickerDemo> {
           darwinOptions: DarwinOptions(
             acceptLabel: _acceptLabelFromInput(),
             orderedSelection: _orderedSelection,
+            copyMedia: _copyMedia,
           ),
           androidOptions:
               _androidSafOptionsFromFlags() ?? const AndroidOptions(),
@@ -654,6 +657,17 @@ class _FilePickerDemoState extends State<FilePickerDemo> {
           ),
           onChanged: (value) => setState(() => _orderedSelection = value),
           value: _orderedSelection,
+        ),
+      ),
+      ConstrainedBox(
+        constraints: const BoxConstraints.tightFor(width: 400.0),
+        child: SwitchListTile.adaptive(
+          title: const Text(
+            'Copy media (iOS photo library)',
+            textAlign: TextAlign.left,
+          ),
+          onChanged: (value) => setState(() => _copyMedia = value),
+          value: _copyMedia,
         ),
       ),
       ConstrainedBox(

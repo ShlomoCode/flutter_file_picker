@@ -17,6 +17,7 @@ class DarwinOptions {
     this.assetRepresentationMode = DarwinAssetRepresentationMode.automatic,
     this.acceptLabel,
     this.orderedSelection = true,
+    this.copyMedia = true,
   });
 
   /// The preferred representation for media selected from the iOS photo
@@ -47,6 +48,19 @@ class DarwinOptions {
   /// which has no ordered selection. Requires iOS 15 or newer and has no
   /// effect on macOS.
   final bool orderedSelection;
+
+  /// Whether media picked from the iOS photo library is copied into the app's
+  /// temporary directory.
+  ///
+  /// Set it to `false` to skip the copy, for example to avoid duplicating
+  /// large videos. Each picked item then only carries its photo library
+  /// identifier, `DarwinPlatformFile.assetIdentifier`, and a `ph:///` URI, and
+  /// its content cannot be read through the returned file: open the original
+  /// asset by its identifier instead, which needs photo library access.
+  ///
+  /// Only applies to `FileType.image`, `FileType.video` and `FileType.media`,
+  /// which use the photo library picker. It has no effect on macOS.
+  final bool copyMedia;
 
   /// Throws an [ArgumentError] if this configuration conflicts with
   /// [compressionQuality].

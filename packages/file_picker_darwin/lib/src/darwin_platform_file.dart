@@ -10,6 +10,7 @@ base class DarwinPlatformFile extends PlatformFile {
   DarwinPlatformFile({
     required this.name,
     required this.uri,
+    this.assetIdentifier,
     XFile? xFile,
     int? bytesLength,
   }) : _xFile = xFile,
@@ -33,13 +34,16 @@ base class DarwinPlatformFile extends PlatformFile {
       );
     }
 
-    final Uri uri = path.contains('://')
+    final Uri uri = path.isEmpty
+        ? Uri.parse(data['uri']! as String)
+        : path.contains('://')
         ? (Uri.tryParse(path) ?? Uri.file(path))
         : Uri.file(path);
 
     return DarwinPlatformFile(
       name: name,
       uri: uri,
+      assetIdentifier: data['assetIdentifier'] as String?,
       bytesLength: data['size'] as int?,
     );
   }
@@ -49,6 +53,25 @@ base class DarwinPlatformFile extends PlatformFile {
 
   @override
   final Uri uri;
+
+  /// The photo library identifier of media picked from the iOS photo library,
+  /// or `null` for any other file.
+  ///
+  /// It identifies the original asset, so an app with photo library access
+  /// can open it again later, for example through `photo_manager`, without
+  /// the copy. With `DarwinOptions(copyMedia: false)` it is the only way to
+  /// reach the content, since nothing is copied.
+  final String? assetIdentifier;
+
+  /// Whether this file only references a photo library asset, picked with
+  /// `DarwinOptions(copyMedia: false)`, and has no readable copy: a `ph` URI
+  /// and no [XFile] to read it through.
+  bool get _isAssetReference => uri.scheme == 'ph' && _xFile == null;
+
+  UnsupportedError get _assetReferenceError => UnsupportedError(
+    'This file was picked with DarwinOptions(copyMedia: false), so it has no '
+    'readable copy. Open the original asset by its assetIdentifier instead.',
+  );
 
   final XFile? _xFile;
   final int? _bytesLength;
@@ -69,6 +92,7 @@ base class DarwinPlatformFile extends PlatformFile {
 
   @override
   Future<int?> length() async {
+    if (_isAssetReference) return null;
     final len = _bytesLength;
     if (len != null && len > 0) return len;
     try {
@@ -80,11 +104,13 @@ base class DarwinPlatformFile extends PlatformFile {
 
   @override
   Future<Uint8List> readAsBytes() async {
+    if (_isAssetReference) throw _assetReferenceError;
     return xFile.readAsBytes();
   }
 
   @override
   Stream<Uint8List> readAsByteStream() {
+    if (_isAssetReference) return Stream.error(_assetReferenceError);
     return xFile.openRead();
   }
 
@@ -101,6 +127,9 @@ base class DarwinPlatformFile extends PlatformFile {
 
   @override
   String toString() {
-    return 'DarwinPlatformFile(name: $name, uri: $uri)';
+    final asset = assetIdentifier == null
+        ? ''
+        : ', assetIdentifier: $assetIdentifier';
+    return 'DarwinPlatformFile(name: $name, uri: $uri$asset)';
   }
 }
