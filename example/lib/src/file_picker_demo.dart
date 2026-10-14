@@ -151,7 +151,7 @@ class _FilePickerDemoState extends State<FilePickerDemo> {
       }
       hasUserAborted = pickedFiles.isEmpty;
     } on PlatformException catch (e) {
-      _logException('Unsupported operation: $e');
+      _logException('Pick failed: $e');
     } catch (e) {
       _logException(e.toString());
     }
@@ -224,7 +224,7 @@ class _FilePickerDemoState extends State<FilePickerDemo> {
       );
       hasUserAborted = pickedFilesAndDirectories.isEmpty;
     } on PlatformException catch (e) {
-      _logException('Unsupported operation: $e');
+      _logException('Pick failed: $e');
     } catch (e) {
       _logException(e.toString());
     }
@@ -267,7 +267,7 @@ class _FilePickerDemoState extends State<FilePickerDemo> {
         const SnackBar(content: Text('Temporary files removed with success.')),
       );
     } on PlatformException catch (e) {
-      _logException('Unsupported operation: $e');
+      _logException('Clearing temporary files failed: $e');
     } catch (e) {
       _logException(e.toString());
     }
@@ -291,7 +291,7 @@ class _FilePickerDemoState extends State<FilePickerDemo> {
       );
       hasUserAborted = pickedDirectoryPath == null;
     } on PlatformException catch (e) {
-      _logException('Unsupported operation: $e');
+      _logException('Picking a folder failed: $e');
     } catch (e) {
       _logException(e.toString());
     }
@@ -367,7 +367,7 @@ class _FilePickerDemoState extends State<FilePickerDemo> {
       );
       hasUserAborted = pickedSaveFileUri == null;
     } on PlatformException catch (e) {
-      _logException('Unsupported operation: $e');
+      _logException('Save failed: $e');
     } catch (e) {
       _logException(e.toString());
     }

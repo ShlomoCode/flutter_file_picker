@@ -316,6 +316,17 @@ jobs:
           flutter pub get
           flutter build macos
 
+      # Runs the XCTest unit tests for the parts of file_picker_darwin that do
+      # not depend on a system picker. They live in the macOS example's
+      # RunnerTests target, which imports the plugin, and the sources are
+      # shared with iOS. --config-only prepares the Debug configuration that
+      # xcodebuild test needs without building the app a second time.
+      - name: Run native unit tests
+        working-directory: example
+        run: |
+          flutter build macos --debug --config-only
+          xcodebuild test -workspace macos/Runner.xcworkspace -scheme Runner -destination 'platform=macOS'
+
       # file_picker_darwin declares ios and macos with sharedDarwinSource, so
       # both targets ship from the same sources and both need compiling. Reuses
       # this runner because macOS minutes bill at 10x.

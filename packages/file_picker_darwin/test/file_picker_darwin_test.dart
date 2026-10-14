@@ -257,6 +257,29 @@ void main() {
       });
     });
 
+    test('pickFiles surfaces load_failed instead of an empty list', () async {
+      final picker = FilePickerDarwin();
+
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(picker.methodChannel, (call) async {
+            throw PlatformException(
+              code: 'load_failed',
+              message: 'None of the picked items could be loaded.',
+            );
+          });
+      addTearDown(() {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(picker.methodChannel, null);
+      });
+
+      await expectLater(
+        picker.pickFiles(type: FileType.media),
+        throwsA(
+          isA<PlatformException>().having((e) => e.code, 'code', 'load_failed'),
+        ),
+      );
+    });
+
     test('pickFile and pickFiles send orderedSelection', () async {
       final picker = FilePickerDarwin();
       bool? orderedSelection;
