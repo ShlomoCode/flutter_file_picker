@@ -1,4 +1,7 @@
 import 'package:android_file_picker/android_file_picker.dart';
+// Deprecated in favor of package:material_ui, which needs a newer Flutter than
+// CI's oldest one. Migrating is tracked in #2210.
+// ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 
 import 'file_picker_results.dart';

@@ -3,6 +3,12 @@
 - **BREAKING CHANGE**: Migrated to `cross_file` 0.4.0. `PlatformFile.xFile` now returns the new `XFile` API. Requires Flutter 3.41, Dart 3.11 and macOS 10.15. [#2224](https://github.com/vicajilau/flutter_file_picker/issues/2224)
 - `DarwinOptions.acceptLabel` now also sets the confirm button text of `getDirectoryPath()` and `saveFile()` on macOS. [#1861](https://github.com/vicajilau/flutter_file_picker/issues/1861)
 
+## 2.3.2
+
+- Fixed picking a Live Photo on iOS copying its paired video too and leaving it in the temporary directory. Only the still image is loaded now. [#2260](https://github.com/vicajilau/flutter_file_picker/issues/2260)
+- Fixed picking a package document on iOS, such as an `.rtfd`, returning an image from inside it. [#2259](https://github.com/vicajilau/flutter_file_picker/issues/2259)
+- Fixed files picked with the iOS document picker being stored twice in the temporary directory. [#2261](https://github.com/vicajilau/flutter_file_picker/issues/2261)
+
 ## 2.3.1
 
 - Fixed a pick on iOS where none of the picked items could be loaded completing with an empty list, as if the user had cancelled. It now throws a `PlatformException` with the `load_failed` code. [#2248](https://github.com/vicajilau/flutter_file_picker/issues/2248)

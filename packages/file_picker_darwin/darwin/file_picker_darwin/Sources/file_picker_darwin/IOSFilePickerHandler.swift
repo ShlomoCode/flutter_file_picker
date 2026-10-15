@@ -170,12 +170,20 @@ final class IOSFilePickerHandler: NSObject,
 
         for (index, item) in results.enumerated() {
             group.enter()
+            // Loading the image or video itself, instead of any
+            // representation, keeps a Live Photo from bringing its whole
+            // bundle, paired video included (#2260).
+            let typeIdentifier = MediaRepresentation.typeIdentifier(
+                for: item.itemProvider.registeredTypeIdentifiers,
+                preferringCompatible: assetRepresentationMode == .compatible)
             item.itemProvider.loadFileRepresentation(
-                forTypeIdentifier: UTType.item.identifier
+                forTypeIdentifier: typeIdentifier
             ) { [weak self] url, _ in
                 defer { group.leave() }
+                // iOS deletes this file when the handler returns, so it has to
+                // be copied.
                 guard let self, let sourceURL = url,
-                      let copiedURL = self.copyToTemporaryDirectory(sourceURL)
+                      let copiedURL = self.storeInTemporaryDirectory(sourceURL, copying: true)
                 else {
                     return
                 }
@@ -267,8 +275,10 @@ final class IOSFilePickerHandler: NSObject,
         var resolved: [[String: Any]] = []
 
         for sourceURL in urls {
-            guard let copiedURL = copyToTemporaryDirectory(sourceURL),
-                  let fileInfo = makeFileInfo(from: copiedURL)
+            // The picker opens with `asCopy`, so each file is already a copy
+            // the app owns, and moving it avoids storing it twice (#2261).
+            guard let movedURL = storeInTemporaryDirectory(sourceURL, copying: false),
+                  let fileInfo = makeFileInfo(from: movedURL)
             else {
                 continue
             }
@@ -445,8 +455,9 @@ final class IOSFilePickerHandler: NSObject,
         return topController
     }
 
-    /// Copies a picked item into its own freshly created subdirectory of
-    /// `NSTemporaryDirectory()`.
+    /// Moves a picked item into its own freshly created subdirectory of
+    /// `NSTemporaryDirectory()`, or copies it when `copying` is set, for
+    /// sources the app does not own.
     ///
     /// The destination used to be `NSTemporaryDirectory()` plus the source's
     /// `lastPathComponent`, which is not unique: two picked assets can share a
@@ -469,7 +480,7 @@ final class IOSFilePickerHandler: NSObject,
     /// Giving each item its own directory removes the shared destination, so
     /// the copies can no longer observe or delete each other. The existence
     /// check is gone with it, the directory is new every time.
-    private func copyToTemporaryDirectory(_ sourceURL: URL) -> URL? {
+    private func storeInTemporaryDirectory(_ sourceURL: URL, copying: Bool) -> URL? {
         let directoryURL = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         let destinationURL = directoryURL
@@ -480,37 +491,15 @@ final class IOSFilePickerHandler: NSObject,
                 at: directoryURL,
                 withIntermediateDirectories: true
             )
-            try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
-            return resolveActualFile(at: destinationURL)
+            if copying {
+                try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+            } else {
+                try FileManager.default.moveItem(at: sourceURL, to: destinationURL)
+            }
+            return destinationURL
         } catch {
             return nil
         }
-    }
-
-    /// Some `PHPickerResult` items (notably Live Photos, which iOS saves as
-    /// `.pvt` packages) resolve to a *directory* rather than a regular file
-    /// when loaded via `loadFileRepresentation(forTypeIdentifier: UTType.item...)`.
-    /// Reading such a path as a file later fails with "Is a directory" (errno 21).
-    /// When that happens, return the still image contained in the package
-    /// instead of the package itself.
-    private func resolveActualFile(at url: URL) -> URL? {
-        var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
-            return nil
-        }
-        guard isDirectory.boolValue else {
-            return url
-        }
-
-        let imageExtensions = ["jpg", "jpeg", "heic", "heif", "png"]
-        guard let contents = try? FileManager.default.contentsOfDirectory(
-            at: url,
-            includingPropertiesForKeys: nil
-        ) else {
-            return nil
-        }
-
-        return contents.first { imageExtensions.contains($0.pathExtension.lowercased()) }
     }
 
     /// Describes a picked photo library asset without copying it, by its
@@ -527,15 +516,12 @@ final class IOSFilePickerHandler: NSObject,
         // Photo registers its bundle type first, and its suggested name may
         // already end in that bundle's ".pvt" extension, so replace any
         // extension that is not an image or video one.
-        func isMedia(_ type: UTType) -> Bool {
-            type.conforms(to: .image) || type.conforms(to: .movie)
-        }
-        let mediaType = provider.registeredTypeIdentifiers
-            .compactMap { UTType($0) }
-            .first(where: isMedia)
+        let mediaType = MediaRepresentation.mediaType(
+            in: provider.registeredTypeIdentifiers,
+            preferringCompatible: assetRepresentationMode == .compatible)
         let currentExtension = (name as NSString).pathExtension
         let hasMediaExtension = UTType(filenameExtension: currentExtension)
-            .map(isMedia) ?? false
+            .map(MediaRepresentation.isMedia) ?? false
         if !hasMediaExtension, let ext = mediaType?.preferredFilenameExtension {
             if !currentExtension.isEmpty {
                 name = (name as NSString).deletingPathExtension

@@ -100,8 +100,12 @@ jobs:
       - name: Analyze project source
         run: melos exec --concurrency=1 -- flutter analyze .
 
+      # `melos run test` relaunches melos through `dart run melos:melos`,
+      # which cannot find the global installation on Flutter 3.50 beta
+      # (https://github.com/blaugold/cli_launcher/issues/28). Calling exec
+      # directly, like the analyze step, avoids that.
       - name: Run tests
-        run: melos run test
+        run: melos exec --concurrency=1 -- flutter test
 
       # flutter test runs on the Dart VM, which silently skips every test
       # marked @TestOn('browser'), and most file_picker_web tests need a real

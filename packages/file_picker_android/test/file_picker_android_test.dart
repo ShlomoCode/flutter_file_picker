@@ -1,5 +1,6 @@
 import 'package:android_file_picker/android_file_picker.dart';
 import 'package:file_picker_platform_interface/file_picker_platform_interface.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -77,6 +78,50 @@ void main() {
         expect(await picker.pickFileAndDirectoryPaths(), [cachedPath]);
       },
     );
+
+    group('sends the SAF options where the native side reads them', () {
+      const options = FilePickerAndroidOptions(
+        safOptions: AndroidSAFOptions(
+          grant: AndroidSAFGrant.lifetime,
+          accessMode: AndroidSAFAccessMode.readWrite,
+          persistGrant: false,
+        ),
+      );
+      const expected = {
+        'grant': 'lifetime',
+        'access': 'readWrite',
+        'autoPersist': false,
+      };
+
+      late FilePickerAndroid picker;
+      late List<MethodCall> calls;
+
+      setUp(() {
+        picker = FilePickerAndroid();
+        calls = [];
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(picker.methodChannel, (call) async {
+              calls.add(call);
+              return call.method == 'dir' ? '/storage/dir' : [];
+            });
+      });
+      tearDown(
+        () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(picker.methodChannel, null),
+      );
+
+      test('when picking files', () async {
+        await picker.pickFiles(androidOptions: options);
+
+        expect(calls.single.arguments['androidSafOptions'], expected);
+      });
+
+      test('when picking a directory', () async {
+        await picker.getDirectoryPath(androidOptions: options);
+
+        expect(calls.single.arguments['androidSafOptions'], expected);
+      });
+    });
 
     group('retrieveLostData', () {
       late FilePickerAndroid picker;

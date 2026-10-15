@@ -104,7 +104,7 @@ object FileUtils {
                             uri = processUri(activity, uri, compressionQuality)
                             addFile(activity, uri, files, hasSafOptions, isReadWrite)
                         }
-                        finishWithSuccess(files)
+                        handleFileResult(files)
                     }
 
                     data.data != null -> {
@@ -139,7 +139,7 @@ object FileUtils {
                             maybeTakePersistableUriPermission(uri)
                             addFile(activity, uri, files, hasSafOptions, isReadWrite)
                         }
-                        finishWithSuccess(files)
+                        handleFileResult(files)
                     }
 
                     else -> finishWithError(

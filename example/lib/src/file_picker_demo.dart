@@ -2,6 +2,9 @@ import 'package:file/local.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:android_file_picker/android_file_picker.dart';
 import 'package:flutter/foundation.dart';
+// Deprecated in favor of package:material_ui, which needs a newer Flutter than
+// CI's oldest one. Migrating is tracked in #2210.
+// ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:typed_data';
@@ -26,7 +29,6 @@ class _FilePickerDemoState extends State<FilePickerDemo> {
   final _defaultFileNameController = TextEditingController();
   final _dialogTitleController = TextEditingController();
   final _initialDirectoryController = TextEditingController();
-  final _parentWindowController = TextEditingController();
   final _acceptLabelController = TextEditingController();
   final _fileExtensionController = TextEditingController();
   String? _extension;
@@ -39,7 +41,6 @@ class _FilePickerDemoState extends State<FilePickerDemo> {
   bool _copyMedia = true;
   bool _safPersist = false;
   bool _safReadWrite = false;
-  bool _supportsSafOptions = false;
   String? _streamingProgressText;
   Uint8List? _pickedFileBytes;
   String? _pickedFileBytesSource;
@@ -47,6 +48,16 @@ class _FilePickerDemoState extends State<FilePickerDemo> {
   List<PlatformFile> pickedFiles = [];
 
   bool get _isSaveFileDisabled => _multiPick;
+
+  // Each platform only shows the options it honors.
+  bool _isPlatform(TargetPlatform platform) =>
+      !kIsWeb && defaultTargetPlatform == platform;
+  bool get _isAndroid => _isPlatform(TargetPlatform.android);
+  bool get _isIOS => _isPlatform(TargetPlatform.iOS);
+  bool get _canLockParentWindow =>
+      _isPlatform(TargetPlatform.windows) || _isPlatform(TargetPlatform.linux);
+  bool get _supportsAcceptLabel =>
+      _canLockParentWindow || _isPlatform(TargetPlatform.macOS);
 
   Widget _resultsWidget = const Row(
     children: [
@@ -75,9 +86,6 @@ class _FilePickerDemoState extends State<FilePickerDemo> {
     _fileExtensionController.addListener(
       () => _extension = _fileExtensionController.text,
     );
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      _supportsSafOptions = true;
-    }
     _retrieveLostData();
   }
 
@@ -86,7 +94,6 @@ class _FilePickerDemoState extends State<FilePickerDemo> {
     _defaultFileNameController.dispose();
     _dialogTitleController.dispose();
     _initialDirectoryController.dispose();
-    _parentWindowController.dispose();
     _acceptLabelController.dispose();
     _fileExtensionController.dispose();
     super.dispose();
@@ -593,31 +600,22 @@ class _FilePickerDemoState extends State<FilePickerDemo> {
         child: TextField(
           decoration: const InputDecoration(
             border: OutlineInputBorder(),
-            labelText: 'Custom Parent Window (e.g. x11:0x... or HWND int)',
-          ),
-          controller: _parentWindowController,
-        ),
-      ),
-      SizedBox(
-        width: 400,
-        child: TextField(
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
             labelText: 'Default File Name',
           ),
           controller: _defaultFileNameController,
         ),
       ),
-      SizedBox(
-        width: 400,
-        child: TextField(
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-            labelText: 'Accept Label (Linux/Windows/macOS)',
+      if (_supportsAcceptLabel)
+        SizedBox(
+          width: 400,
+          child: TextField(
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              labelText: 'Accept Label',
+            ),
+            controller: _acceptLabelController,
           ),
-          controller: _acceptLabelController,
         ),
-      ),
       SizedBox(
         width: 400,
         child: DropdownButtonFormField<FileType>(
@@ -656,14 +654,15 @@ class _FilePickerDemoState extends State<FilePickerDemo> {
     ];
 
     final optionsFields = <Widget>[
-      SizedBox(
-        width: 400.0,
-        child: SwitchListTile.adaptive(
-          title: const Text('Lock parent window', textAlign: TextAlign.left),
-          onChanged: (value) => setState(() => _lockParentWindow = value),
-          value: _lockParentWindow,
+      if (_canLockParentWindow)
+        SizedBox(
+          width: 400.0,
+          child: SwitchListTile.adaptive(
+            title: const Text('Lock parent window', textAlign: TextAlign.left),
+            onChanged: (value) => setState(() => _lockParentWindow = value),
+            value: _lockParentWindow,
+          ),
         ),
-      ),
       ConstrainedBox(
         constraints: const BoxConstraints.tightFor(width: 400.0),
         child: SwitchListTile.adaptive(
@@ -677,54 +676,54 @@ class _FilePickerDemoState extends State<FilePickerDemo> {
           value: _multiPick,
         ),
       ),
-      ConstrainedBox(
-        constraints: const BoxConstraints.tightFor(width: 400.0),
-        child: SwitchListTile.adaptive(
-          title: const Text(
-            'Ordered selection (iOS photo library)',
-            textAlign: TextAlign.left,
+      if (_isIOS) ...[
+        ConstrainedBox(
+          constraints: const BoxConstraints.tightFor(width: 400.0),
+          child: SwitchListTile.adaptive(
+            title: const Text(
+              'Ordered selection (iOS photo library)',
+              textAlign: TextAlign.left,
+            ),
+            onChanged: (value) => setState(() => _orderedSelection = value),
+            value: _orderedSelection,
           ),
-          onChanged: (value) => setState(() => _orderedSelection = value),
-          value: _orderedSelection,
         ),
-      ),
-      ConstrainedBox(
-        constraints: const BoxConstraints.tightFor(width: 400.0),
-        child: SwitchListTile.adaptive(
-          title: const Text(
-            'Copy media (iOS photo library)',
-            textAlign: TextAlign.left,
+        ConstrainedBox(
+          constraints: const BoxConstraints.tightFor(width: 400.0),
+          child: SwitchListTile.adaptive(
+            title: const Text(
+              'Copy media (iOS photo library)',
+              textAlign: TextAlign.left,
+            ),
+            onChanged: (value) => setState(() => _copyMedia = value),
+            value: _copyMedia,
           ),
-          onChanged: (value) => setState(() => _copyMedia = value),
-          value: _copyMedia,
         ),
-      ),
-      ConstrainedBox(
-        constraints: const BoxConstraints.tightFor(width: 400.0),
-        child: SwitchListTile.adaptive(
-          title: const Text(
-            'SAF Persist (Android 10+)',
-            textAlign: TextAlign.left,
+      ],
+      if (_isAndroid) ...[
+        ConstrainedBox(
+          constraints: const BoxConstraints.tightFor(width: 400.0),
+          child: SwitchListTile.adaptive(
+            title: const Text(
+              'SAF Persist (Android 10+)',
+              textAlign: TextAlign.left,
+            ),
+            onChanged: (value) => setState(() => _safPersist = value),
+            value: _safPersist,
           ),
-          onChanged: _supportsSafOptions
-              ? (value) => setState(() => _safPersist = value)
-              : null,
-          value: _safPersist,
         ),
-      ),
-      ConstrainedBox(
-        constraints: const BoxConstraints.tightFor(width: 400.0),
-        child: SwitchListTile.adaptive(
-          title: const Text(
-            'SAF ReadWrite (Android 10+)',
-            textAlign: TextAlign.left,
+        ConstrainedBox(
+          constraints: const BoxConstraints.tightFor(width: 400.0),
+          child: SwitchListTile.adaptive(
+            title: const Text(
+              'SAF ReadWrite (Android 10+)',
+              textAlign: TextAlign.left,
+            ),
+            onChanged: (value) => setState(() => _safReadWrite = value),
+            value: _safReadWrite,
           ),
-          onChanged: _supportsSafOptions
-              ? (value) => setState(() => _safReadWrite = value)
-              : null,
-          value: _safReadWrite,
         ),
-      ),
+      ],
     ];
 
     final actionButtons = <Widget>[
