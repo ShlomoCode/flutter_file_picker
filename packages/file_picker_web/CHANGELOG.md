@@ -5,6 +5,10 @@
 - `readAsByteStream()` emits chunks of `WebPlatformFile.streamChunkSize` (1 MiB), except the last one, which may be shorter.
 - **BREAKING CHANGE**: Migrated to `cross_file` 0.4.0. `PlatformFile.xFile` now returns the new `XFile` API. Requires Flutter 3.41 and Dart 3.11.
 
+## 4.2.0
+
+- Added `FilePickerWebOptions.saveMode`. `WebSaveFileMode.dialog` saves through the browser's save dialog, and `supportsShowSaveFileDialog` tells whether the browser supports it. [#1732](https://github.com/vicajilau/flutter_file_picker/issues/1732)
+
 ## 4.1.0
 
 - `readAsByteStream()` now always emits evenly sized chunks of `WebPlatformFile.streamChunkSize` (1 MiB), except the last one, with or without `withReadStream`. With `withReadStream` the chunks used to be 1,000,000 bytes. [#2223](https://github.com/vicajilau/flutter_file_picker/issues/2223)
