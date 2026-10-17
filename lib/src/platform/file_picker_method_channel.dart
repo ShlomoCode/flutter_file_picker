@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:file_picker/src/api/directory_access.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -76,6 +77,30 @@ class MethodChannelFilePicker extends FilePickerPlatform {
       }
     }
     return null;
+  }
+
+  @override
+  Future<DirectoryAccess?> getDirectoryAccess({
+    String? dialogTitle,
+    bool lockParentWindow = false,
+    String? initialDirectory,
+  }) async {
+    if (defaultTargetPlatform != TargetPlatform.iOS) {
+      return super.getDirectoryAccess(
+        dialogTitle: dialogTitle,
+        lockParentWindow: lockParentWindow,
+        initialDirectory: initialDirectory,
+      );
+    }
+    final result = await methodChannel.invokeMapMethod<String, dynamic>(
+      'dirWithBookmark',
+      {},
+    );
+    if (result == null) return null;
+    return DirectoryAccess(
+      path: result['path'] as String,
+      bookmark: result['bookmark'] as Uint8List,
+    );
   }
 
   Future<FilePickerResult?> _getPath(

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:file_picker/src/api/directory_access.dart';
 import 'package:file_picker/src/platform/file_picker_platform_interface.dart';
 import 'package:file_picker/src/api/file_picker_result.dart';
 import 'package:file_picker/src/api/file_picker_types.dart';
@@ -160,6 +161,30 @@ abstract final class FilePicker {
     String? initialDirectory,
   }) {
     return FilePickerPlatform.instance.getDirectoryPath(
+      dialogTitle: dialogTitle,
+      lockParentWindow: lockParentWindow,
+      initialDirectory: initialDirectory,
+    );
+  }
+
+  /// Selects a directory and returns its path and optional access bookmark.
+  ///
+  /// On iOS, returns a minimal bookmark for the original security-scoped URL.
+  /// Native code must resolve the bookmark and manage security-scoped access,
+  /// including any access started implicitly during resolution. Coordinate file
+  /// operations and release access when those operations finish.
+  /// A bare [DirectoryAccess.path] does not preserve permission on iOS.
+  /// Bookmark creation failures throw a platform exception.
+  ///
+  /// Other platforms use [getDirectoryPath] and return a null bookmark.
+  /// The arguments have the same meaning as in [getDirectoryPath].
+  /// Returns null if the user cancels.
+  static Future<DirectoryAccess?> getDirectoryAccess({
+    String? dialogTitle,
+    bool lockParentWindow = false,
+    String? initialDirectory,
+  }) {
+    return FilePickerPlatform.instance.getDirectoryAccess(
       dialogTitle: dialogTitle,
       lockParentWindow: lockParentWindow,
       initialDirectory: initialDirectory,
