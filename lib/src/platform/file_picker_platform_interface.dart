@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:file_picker/src/api/directory_access.dart';
 import 'package:file_picker/src/api/file_picker_result.dart';
 import 'package:file_picker/src/api/file_picker_types.dart';
 import 'package:file_picker/src/platform/file_picker_method_channel.dart';
@@ -69,6 +70,23 @@ abstract class FilePickerPlatform extends PlatformInterface {
   }) async {
     throw UnimplementedError('getDirectoryPath() has not been implemented.');
   }
+
+  /// Selects a directory, with optional platform access data.
+  Future<DirectoryAccess?> getDirectoryAccess({
+    String? dialogTitle,
+    bool lockParentWindow = false,
+    String? initialDirectory,
+  }) async {
+    final path = await getDirectoryPath(
+      dialogTitle: dialogTitle,
+      lockParentWindow: lockParentWindow,
+      initialDirectory: initialDirectory,
+    );
+    return path == null ? null : DirectoryAccess(path: path);
+  }
+
+  /// Releases the initial reference to a directory access lease, if any.
+  Future<void> releaseDirectoryAccess({required String accessToken}) async {}
 
   /// Opens a save file dialog which lets the user select a file path and a file
   /// name to save a file.

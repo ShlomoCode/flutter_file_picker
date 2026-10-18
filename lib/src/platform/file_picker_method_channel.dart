@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:file_picker/src/api/directory_access.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -58,8 +59,7 @@ class MethodChannelFilePicker extends FilePickerPlatform {
       );
 
   @override
-  Future<bool?> clearTemporaryFiles() async =>
-      methodChannel.invokeMethod<bool>('clear');
+  Future<bool?> clearTemporaryFiles() async => methodChannel.invokeMethod<bool>('clear');
 
   @override
   Future<String?> getDirectoryPath({
@@ -72,10 +72,44 @@ class MethodChannelFilePicker extends FilePickerPlatform {
     } on PlatformException catch (ex) {
       if (ex.code == "unknown_path") {
         print(
-            '[$_tag] Could not resolve directory path. Maybe it\'s a protected one or unsupported (such as Downloads folder). If you are on Android, make sure that you are on SDK 21 or above.');
+          '[$_tag] Could not resolve directory path. Maybe it\'s a protected one or unsupported (such as Downloads folder). If you are on Android, make sure that you are on SDK 21 or above.',
+        );
       }
     }
     return null;
+  }
+
+  @override
+  Future<DirectoryAccess?> getDirectoryAccess({
+    String? dialogTitle,
+    bool lockParentWindow = false,
+    String? initialDirectory,
+  }) async {
+    if (defaultTargetPlatform != TargetPlatform.iOS) {
+      return super.getDirectoryAccess(
+        dialogTitle: dialogTitle,
+        lockParentWindow: lockParentWindow,
+        initialDirectory: initialDirectory,
+      );
+    }
+    final result = await methodChannel.invokeMapMethod<String, dynamic>(
+      'dirWithAccess',
+      {},
+    );
+    if (result == null) return null;
+    return DirectoryAccess(
+      path: result['path'] as String,
+      accessToken: result['accessToken'] as String?,
+    );
+  }
+
+  @override
+  Future<void> releaseDirectoryAccess({required String accessToken}) async {
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      await methodChannel.invokeMethod<void>('releaseDirectoryAccess', {
+        'accessToken': accessToken,
+      });
+    }
   }
 
   Future<FilePickerResult?> _getPath(
@@ -99,14 +133,14 @@ class MethodChannelFilePicker extends FilePickerPlatform {
     try {
       await _eventSubscription?.cancel();
       if (onFileLoading != null) {
-        _eventSubscription = eventChannel.receiveBroadcastStream().listen(
-          (data) {
-            if (data is! bool) return;
-            onFileLoading(
-                data ? FilePickerStatus.picking : FilePickerStatus.done);
-          },
-          onError: (error) => throw Exception(error),
-        );
+        _eventSubscription = eventChannel.receiveBroadcastStream().listen((
+          data,
+        ) {
+          if (data is! bool) return;
+          onFileLoading(
+            data ? FilePickerStatus.picking : FilePickerStatus.done,
+          );
+        }, onError: (error) => throw Exception(error));
       }
 
       final List<Map>? result = await methodChannel.invokeListMethod(type, {
@@ -126,9 +160,7 @@ class MethodChannelFilePicker extends FilePickerPlatform {
         platformFiles.add(
           PlatformFile.fromMap(
             platformFileMap,
-            readStream: withReadStream!
-                ? File(platformFileMap['path']).openRead()
-                : null,
+            readStream: withReadStream! ? File(platformFileMap['path']).openRead() : null,
           ),
         );
       }
@@ -139,23 +171,26 @@ class MethodChannelFilePicker extends FilePickerPlatform {
       rethrow;
     } catch (e) {
       print(
-          '[$_tag] Unsupported operation. Method not found. The exception thrown was: $e');
+        '[$_tag] Unsupported operation. Method not found. The exception thrown was: $e',
+      );
       rethrow;
     }
   }
 
   @override
-  Future<String?> saveFile(
-      {String? dialogTitle,
-      String? fileName,
-      String? initialDirectory,
-      FileType type = FileType.any,
-      List<String>? allowedExtensions,
-      Uint8List? bytes,
-      bool lockParentWindow = false}) {
+  Future<String?> saveFile({
+    String? dialogTitle,
+    String? fileName,
+    String? initialDirectory,
+    FileType type = FileType.any,
+    List<String>? allowedExtensions,
+    Uint8List? bytes,
+    bool lockParentWindow = false,
+  }) {
     if (bytes == null) {
       throw ArgumentError(
-          'The "bytes" parameter is required on Android & iOS when calling "saveFile".');
+        'The "bytes" parameter is required on Android & iOS when calling "saveFile".',
+      );
     }
 
     return methodChannel.invokeMethod("save", {

@@ -28,6 +28,9 @@ let package = Package(
                 .define("PICKER_MEDIA"),
                 .define("PICKER_AUDIO"),
                 .define("PICKER_DOCUMENT")
+            ],
+            linkerSettings: [
+                .linkedFramework("Security")
             ]
         )
     ]

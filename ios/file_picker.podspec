@@ -19,6 +19,7 @@ A flutter plugin to show native file picker dialogs.
   s.ios.deployment_target = '12.0'
 
   s.dependency 'Flutter'
+  s.frameworks = 'Security'
 
   preprocess_definitions=[]
   if !Pod.const_defined?(:PICKER_MEDIA) || PICKER_MEDIA

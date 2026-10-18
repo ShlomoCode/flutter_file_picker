@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:file_picker/src/api/directory_access.dart';
 import 'package:file_picker/src/platform/file_picker_platform_interface.dart';
 import 'package:file_picker/src/api/file_picker_result.dart';
 import 'package:file_picker/src/api/file_picker_types.dart';
@@ -163,6 +164,43 @@ abstract final class FilePicker {
       dialogTitle: dialogTitle,
       lockParentWindow: lockParentWindow,
       initialDirectory: initialDirectory,
+    );
+  }
+
+  /// Selects a directory and returns its path and optional access lease.
+  ///
+  /// On iOS 13 and later, the picker keeps the original selected URL's
+  /// security scope open when it can start one. The returned token is valid only
+  /// in this process. Release the initial reference once with
+  /// [releaseDirectoryAccess] when finished. Native workers must retain the
+  /// token before asynchronous work and release that retain after work exits.
+  /// A null token may still accompany a readable app-owned directory.
+  ///
+  /// Other platforms use [getDirectoryPath] and return a null token.
+  /// The arguments have the same meaning as in [getDirectoryPath].
+  /// Returns null if the user cancels.
+  static Future<DirectoryAccess?> getDirectoryAccess({
+    String? dialogTitle,
+    bool lockParentWindow = false,
+    String? initialDirectory,
+  }) {
+    return FilePickerPlatform.instance.getDirectoryAccess(
+      dialogTitle: dialogTitle,
+      lockParentWindow: lockParentWindow,
+      initialDirectory: initialDirectory,
+    );
+  }
+
+  /// Releases the initial reference to an iOS directory access lease.
+  ///
+  /// Call this once for a non-null [DirectoryAccess.accessToken] after all
+  /// operations have retained their own references or finished. Releasing a
+  /// fully expired token is harmless, but calling this twice while a worker
+  /// still holds a reference can release that worker's reference. Other
+  /// platforms do nothing.
+  static Future<void> releaseDirectoryAccess({required String accessToken}) {
+    return FilePickerPlatform.instance.releaseDirectoryAccess(
+      accessToken: accessToken,
     );
   }
 
