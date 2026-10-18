@@ -166,6 +166,25 @@ abstract final class FilePicker {
     );
   }
 
+  /// Selects a directory on iOS 13 or later and returns its path and optional access token.
+  ///
+  /// A non-null token holds the original picker's security scope in this process.
+  /// Release it exactly once with [releaseDirectoryAccess] when finished; native
+  /// workers must retain their own references before asynchronous work. A null
+  /// token means access depends on ordinary system permissions.
+  ///
+  /// Returns null if the user cancels.
+  static Future<({String path, String? accessToken})?> getDirectoryAccess() {
+    return FilePickerPlatform.instance.getDirectoryAccess();
+  }
+
+  /// Releases the picker's initial reference to an iOS directory access token.
+  static Future<void> releaseDirectoryAccess({required String accessToken}) {
+    return FilePickerPlatform.instance.releaseDirectoryAccess(
+      accessToken: accessToken,
+    );
+  }
+
   /// Opens a save file dialog which lets the user select a file path and a file
   /// name to save a file.
   ///

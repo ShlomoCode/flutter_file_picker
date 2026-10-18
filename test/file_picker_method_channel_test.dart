@@ -1,8 +1,10 @@
 @TestOn('vm')
 library;
 
+import 'package:file_picker/file_picker.dart';
 import 'package:file_picker/src/platform/file_picker_method_channel.dart';
-import 'package:file_picker/src/api/file_picker_types.dart';
+import 'package:file_picker/src/platform/file_picker_platform_interface.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -34,6 +36,36 @@ void main() {
         return null;
       });
       log.clear();
+    });
+
+    tearDown(() {
+      debugDefaultTargetPlatformOverride = null;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+
+    test('iOS directory lease flows through the public API', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        log.add(call);
+        if (call.method == 'dirWithAccess') {
+          return {'path': '/external/folder', 'accessToken': 'live-token'};
+        }
+        return null;
+      });
+      final previous = FilePickerPlatform.instance;
+      FilePickerPlatform.instance = picker;
+      try {
+        final access = await FilePicker.getDirectoryAccess();
+        expect(access!.path, '/external/folder');
+        expect(access.accessToken, 'live-token');
+        await FilePicker.releaseDirectoryAccess(accessToken: access.accessToken!);
+        expect(log.map((call) => call.method), ['dirWithAccess', 'releaseDirectoryAccess']);
+        expect(log.last.arguments, {'accessToken': 'live-token'});
+      } finally {
+        FilePickerPlatform.instance = previous;
+      }
     });
 
     test('pickFiles calls invokeMethod with correct arguments', () async {

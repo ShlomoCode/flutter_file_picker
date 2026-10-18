@@ -78,6 +78,29 @@ class MethodChannelFilePicker extends FilePickerPlatform {
     return null;
   }
 
+  @override
+  Future<({String path, String? accessToken})?> getDirectoryAccess() async {
+    if (defaultTargetPlatform != TargetPlatform.iOS) {
+      throw UnsupportedError('Directory access tokens are only available on iOS.');
+    }
+    final result = await methodChannel.invokeMapMethod<String, dynamic>('dirWithAccess', {});
+    if (result == null) return null;
+    return (
+      path: result['path'] as String,
+      accessToken: result['accessToken'] as String?,
+    );
+  }
+
+  @override
+  Future<void> releaseDirectoryAccess({required String accessToken}) async {
+    if (defaultTargetPlatform != TargetPlatform.iOS) {
+      throw UnsupportedError('Directory access tokens are only available on iOS.');
+    }
+    await methodChannel.invokeMethod<void>('releaseDirectoryAccess', {
+      'accessToken': accessToken,
+    });
+  }
+
   Future<FilePickerResult?> _getPath(
     FileType fileType,
     bool allowMultipleSelection,

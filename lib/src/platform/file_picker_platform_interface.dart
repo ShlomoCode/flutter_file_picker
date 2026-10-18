@@ -70,6 +70,16 @@ abstract class FilePickerPlatform extends PlatformInterface {
     throw UnimplementedError('getDirectoryPath() has not been implemented.');
   }
 
+  /// Selects a directory with an optional iOS security-scope token.
+  Future<({String path, String? accessToken})?> getDirectoryAccess() async {
+    throw UnimplementedError('getDirectoryAccess() has not been implemented.');
+  }
+
+  /// Releases the picker's initial reference to an iOS directory access token.
+  Future<void> releaseDirectoryAccess({required String accessToken}) async {
+    throw UnimplementedError('releaseDirectoryAccess() has not been implemented.');
+  }
+
   /// Opens a save file dialog which lets the user select a file path and a file
   /// name to save a file.
   Future<String?> saveFile({

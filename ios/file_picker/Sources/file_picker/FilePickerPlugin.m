@@ -1,6 +1,7 @@
 #import "FilePickerPlugin.h"
 #import "FilePickerUtils.h"
 #import "ImageUtils.h"
+#import "DirectoryAccessRegistry.h"
 #import <Flutter/Flutter.h>
 
 #ifdef PICKER_MEDIA
@@ -27,6 +28,7 @@
 @property (nonatomic) dispatch_group_t group;
 @property (nonatomic) MediaType type;
 @property (nonatomic) BOOL isSaveFile;
+@property (nonatomic) BOOL directoryWithAccess;
 @end
 
 @implementation FilePickerPlugin
@@ -81,6 +83,14 @@
 }
 
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+    if ([call.method isEqualToString:@"releaseDirectoryAccess"]) {
+        id token = [call.arguments isKindOfClass:[NSDictionary class]] ? call.arguments[@"accessToken"] : nil;
+        if ([token isKindOfClass:[NSString class]]) {
+            file_picker_directory_access_release_v1([(NSString *)token UTF8String]);
+        }
+        result(nil);
+        return;
+    }
     if (_result) {
         result([FlutterError errorWithCode:@"multiple_request"
                                    message:@"Cancelled by a second request"
@@ -89,6 +99,7 @@
     }
     
     _result = result;
+    self.directoryWithAccess = NO;
     
     if([call.method isEqualToString:@"clear"]) {
         _result([NSNumber numberWithBool: [FilePickerUtils clearTemporaryFiles]]);
@@ -96,7 +107,8 @@
         return;
     }
     
-    if([call.method isEqualToString:@"dir"]) {
+    if([call.method isEqualToString:@"dir"] || [call.method isEqualToString:@"dirWithAccess"]) {
+        self.directoryWithAccess = [call.method isEqualToString:@"dirWithAccess"];
         if (@available(iOS 13, *)) {
 #ifdef PICKER_DOCUMENT
             [self resolvePickDocumentWithMultiPick:NO pickDirectory:YES];
@@ -104,9 +116,16 @@
             _result([FlutterError errorWithCode:@"Unsupported picker type"
                                         message:@"Support for the Document picker is not compiled in. Remove the Pod::PICKER_DOCUMENT=false statement from your Podfile."
                                         details:nil]);
+            self.directoryWithAccess = NO;
+            _result = nil;
 #endif
         } else {
-            _result([self getDocumentDirectory]);
+            _result(self.directoryWithAccess
+                ? [FlutterError errorWithCode:@"unsupported_os_version"
+                                     message:@"Directory access leases require iOS 13 or later."
+                                     details:nil]
+                : [self getDocumentDirectory]);
+            self.directoryWithAccess = NO;
             _result = nil;
         }
         return;
@@ -218,6 +237,12 @@
                                          inMode: isDirectory ? UIDocumentPickerModeOpen : UIDocumentPickerModeImport];
     } @catch (NSException * e) {
         Log(@"Couldn't launch documents file picker. Probably due to iOS version being below 11.0 and not having the iCloud entitlement. If so, just make sure to enable it for your app in Xcode. Exception was: %@", e);
+        if (self.directoryWithAccess) {
+            self.directoryWithAccess = NO;
+            _result([FlutterError errorWithCode:@"directory_picker_failed"
+                                      message:@"Could not open the directory picker."
+                                      details:e.reason]);
+        }
         _result = nil;
         return;
     }
@@ -398,6 +423,26 @@
 didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls{
     
     if(_result == nil) {
+        return;
+    }
+    if (self.directoryWithAccess) {
+        // Capture the original picker URL before the delegate returns. A path
+        // reconstructed later does not carry the security-scoped permission.
+        FlutterResult result = _result;
+        _result = nil;
+        self.directoryWithAccess = NO;
+        NSURL *url = urls.firstObject;
+        if (url == nil || url.path == nil) {
+            result([FlutterError errorWithCode:@"directory_picker_failed"
+                                      message:@"Could not resolve the selected directory."
+                                      details:nil]);
+            [self.documentPickerController dismissViewControllerAnimated:YES completion:nil];
+            return;
+        }
+        BOOL accessing = [url startAccessingSecurityScopedResource];
+        NSString *token = accessing ? FPInsertDirectoryLease(url) : nil;
+        result(@{@"path": url.path, @"accessToken": token ?: [NSNull null]});
+        [self.documentPickerController dismissViewControllerAnimated:YES completion:nil];
         return;
     }
     if(self.isSaveFile){
@@ -680,6 +725,7 @@ didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls{
 
 #ifdef PICKER_MEDIA
 - (void)presentationControllerDidDismiss:(UIPresentationController *)controller {
+    self.directoryWithAccess = NO;
     Log(@"FilePicker canceled");
     if (self.result != nil) {
         self.result(nil);
@@ -699,6 +745,7 @@ didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls{
 
 #ifdef PICKER_DOCUMENT
 - (void)documentPickerWasCancelled:(UIDocumentPickerViewController *)controller {
+    self.directoryWithAccess = NO;
     Log(@"FilePicker canceled");
     _result(nil);
     _result = nil;
