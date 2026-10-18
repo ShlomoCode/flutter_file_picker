@@ -68,19 +68,6 @@ void main() {
       }
     });
 
-    test('other platforms keep the existing directory picker', () async {
-      debugDefaultTargetPlatformOverride = TargetPlatform.android;
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(channel, (call) async {
-        log.add(call);
-        return '/existing/path';
-      });
-      final access = await picker.getDirectoryAccess();
-      expect(access!.path, '/existing/path');
-      expect(access.accessToken, isNull);
-      expect(log.single.method, 'dir');
-    });
-
     test('pickFiles calls invokeMethod with correct arguments', () async {
       await picker.pickFiles(
         type: FileType.custom,

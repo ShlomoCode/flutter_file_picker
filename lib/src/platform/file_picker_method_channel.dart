@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:file_picker/src/api/directory_access.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -80,21 +79,13 @@ class MethodChannelFilePicker extends FilePickerPlatform {
   }
 
   @override
-  Future<DirectoryAccess?> getDirectoryAccess({
-    String? dialogTitle,
-    bool lockParentWindow = false,
-    String? initialDirectory,
-  }) async {
+  Future<({String path, String? accessToken})?> getDirectoryAccess() async {
     if (defaultTargetPlatform != TargetPlatform.iOS) {
-      return super.getDirectoryAccess(
-        dialogTitle: dialogTitle,
-        lockParentWindow: lockParentWindow,
-        initialDirectory: initialDirectory,
-      );
+      throw UnsupportedError('Directory access tokens are only available on iOS.');
     }
     final result = await methodChannel.invokeMapMethod<String, dynamic>('dirWithAccess', {});
     if (result == null) return null;
-    return DirectoryAccess(
+    return (
       path: result['path'] as String,
       accessToken: result['accessToken'] as String?,
     );
@@ -102,11 +93,12 @@ class MethodChannelFilePicker extends FilePickerPlatform {
 
   @override
   Future<void> releaseDirectoryAccess({required String accessToken}) async {
-    if (defaultTargetPlatform == TargetPlatform.iOS) {
-      await methodChannel.invokeMethod<void>('releaseDirectoryAccess', {
-        'accessToken': accessToken,
-      });
+    if (defaultTargetPlatform != TargetPlatform.iOS) {
+      throw UnsupportedError('Directory access tokens are only available on iOS.');
     }
+    await methodChannel.invokeMethod<void>('releaseDirectoryAccess', {
+      'accessToken': accessToken,
+    });
   }
 
   Future<FilePickerResult?> _getPath(
