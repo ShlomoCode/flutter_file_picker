@@ -10,8 +10,8 @@ extern "C" {
 /// Retain a live, process-local directory lease for asynchronous native work.
 /// Returns false for an unknown/expired token or a root path different from
 /// the original selected URL's path. Every successful retain requires one
-/// release after the worker has exited. Inputs must be UTF-8; token is 64
-/// lowercase hexadecimal characters and root path is at most 4096 bytes.
+/// release after the worker has exited. Inputs must be UTF-8; root path is
+/// at most 4096 bytes. Treat the token as opaque and process-local.
 __attribute__((visibility("default"))) bool file_picker_directory_access_retain_v1(
     const char *token, const char *expected_root_path);
 

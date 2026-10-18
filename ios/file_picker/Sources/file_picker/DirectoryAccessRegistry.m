@@ -1,5 +1,4 @@
 #import "DirectoryAccessRegistry.h"
-#import <Security/SecRandom.h>
 #import <string.h>
 
 @interface FPDirectoryLease : NSObject
@@ -25,40 +24,21 @@ static NSMutableDictionary<NSString *, FPDirectoryLease *> *FPDirectoryLeases(vo
 }
 
 static NSString *FPValidatedToken(const char *token) {
-    if (token == NULL || strnlen(token, 65) != 64) return nil;
-    for (NSUInteger index = 0; index < 64; index++) {
-        char character = token[index];
-        if (!((character >= '0' && character <= '9') ||
-              (character >= 'a' && character <= 'f'))) return nil;
-    }
-    return [[NSString alloc] initWithBytes:token length:64 encoding:NSASCIIStringEncoding];
-}
-
-static NSString *FPNewToken(void) {
-    unsigned char bytes[32];
-    if (SecRandomCopyBytes(kSecRandomDefault, sizeof(bytes), bytes) != errSecSuccess) return nil;
-    static const char hex[] = "0123456789abcdef";
-    char characters[64];
-    for (NSUInteger index = 0; index < sizeof(bytes); index++) {
-        characters[index * 2] = hex[bytes[index] >> 4];
-        characters[index * 2 + 1] = hex[bytes[index] & 15];
-    }
-    return [[NSString alloc] initWithBytes:characters length:sizeof(characters) encoding:NSASCIIStringEncoding];
+    if (token == NULL || strnlen(token, 37) != 36) return nil;
+    return [[NSString alloc] initWithBytes:token length:36 encoding:NSASCIIStringEncoding];
 }
 
 NSString *FPInsertDirectoryLease(NSURL *originalURL) {
-    NSString *token = FPNewToken();
-    if (token == nil) return nil;
     FPDirectoryLease *lease = [[FPDirectoryLease alloc] init];
     lease.originalURL = originalURL;
     lease.refCount = 1;
     NSLock *lock = FPDirectoryLeaseLock();
     [lock lock];
-    while (FPDirectoryLeases()[token] != nil) {
-        token = FPNewToken();
-        if (token == nil) break;
-    }
-    if (token != nil) FPDirectoryLeases()[token] = lease;
+    NSString *token;
+    do {
+        token = [NSUUID UUID].UUIDString;
+    } while (FPDirectoryLeases()[token] != nil);
+    FPDirectoryLeases()[token] = lease;
     [lock unlock];
     return token;
 }

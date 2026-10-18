@@ -85,7 +85,7 @@
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     if ([call.method isEqualToString:@"releaseDirectoryAccess"]) {
         id token = [call.arguments isKindOfClass:[NSDictionary class]] ? call.arguments[@"accessToken"] : nil;
-        if ([token isKindOfClass:[NSString class]] && [(NSString *)token length] == 64) {
+        if ([token isKindOfClass:[NSString class]]) {
             file_picker_directory_access_release_v1([(NSString *)token UTF8String]);
         }
         result(nil);
@@ -109,38 +109,24 @@
     
     if([call.method isEqualToString:@"dir"] || [call.method isEqualToString:@"dirWithAccess"]) {
         self.directoryWithAccess = [call.method isEqualToString:@"dirWithAccess"];
-        if (self.directoryWithAccess) {
-            if (@available(iOS 13, *)) {
+        if (@available(iOS 13, *)) {
 #ifdef PICKER_DOCUMENT
-                [self resolvePickDocumentWithMultiPick:NO pickDirectory:YES];
+            [self resolvePickDocumentWithMultiPick:NO pickDirectory:YES];
 #else
-                _result([FlutterError errorWithCode:@"Unsupported picker type"
-                                            message:@"Support for the Document picker is not compiled in. Remove the Pod::PICKER_DOCUMENT=false statement from your Podfile."
-                                            details:nil]);
-                self.directoryWithAccess = NO;
-                _result = nil;
+            _result([FlutterError errorWithCode:@"Unsupported picker type"
+                                        message:@"Support for the Document picker is not compiled in. Remove the Pod::PICKER_DOCUMENT=false statement from your Podfile."
+                                        details:nil]);
+            self.directoryWithAccess = NO;
+            _result = nil;
 #endif
-            } else {
-                _result([FlutterError errorWithCode:@"unsupported_os_version"
-                                            message:@"Directory access leases require iOS 13 or later."
-                                            details:nil]);
-                self.directoryWithAccess = NO;
-                _result = nil;
-            }
         } else {
-            if (@available(iOS 13, *)) {
-#ifdef PICKER_DOCUMENT
-                [self resolvePickDocumentWithMultiPick:NO pickDirectory:YES];
-#else
-                _result([FlutterError errorWithCode:@"Unsupported picker type"
-                                            message:@"Support for the Document picker is not compiled in. Remove the Pod::PICKER_DOCUMENT=false statement from your Podfile."
-                                            details:nil]);
-                _result = nil;
-#endif
-            } else {
-                _result([self getDocumentDirectory]);
-                _result = nil;
-            }
+            _result(self.directoryWithAccess
+                ? [FlutterError errorWithCode:@"unsupported_os_version"
+                                     message:@"Directory access leases require iOS 13 or later."
+                                     details:nil]
+                : [self getDocumentDirectory]);
+            self.directoryWithAccess = NO;
+            _result = nil;
         }
         return;
     }
@@ -455,18 +441,8 @@ didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls{
         }
         BOOL accessing = [url startAccessingSecurityScopedResource];
         NSString *token = accessing ? FPInsertDirectoryLease(url) : nil;
-        @try {
-            if (accessing && token == nil) {
-                [url stopAccessingSecurityScopedResource];
-                result([FlutterError errorWithCode:@"directory_access_failed"
-                                          message:@"Could not retain access to the selected directory."
-                                          details:nil]);
-                return;
-            }
-            result(@{@"path": url.path, @"accessToken": token ?: [NSNull null]});
-        } @finally {
-            [self.documentPickerController dismissViewControllerAnimated:YES completion:nil];
-        }
+        result(@{@"path": url.path, @"accessToken": token ?: [NSNull null]});
+        [self.documentPickerController dismissViewControllerAnimated:YES completion:nil];
         return;
     }
     if(self.isSaveFile){

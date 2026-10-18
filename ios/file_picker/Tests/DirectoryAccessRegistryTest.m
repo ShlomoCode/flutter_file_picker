@@ -36,7 +36,7 @@ int main(void) {
     @autoreleasepool {
         LeaseTestURL *url = [[LeaseTestURL alloc] initWithPath:@"/external/folder"];
         NSString *token = FPInsertDirectoryLease(url);
-        Require(token.length == 64, @"insertion returns a token");
+        Require(token.length == 36, @"insertion returns a token");
         const char *key = token.UTF8String;
         Require(!file_picker_directory_access_retain_v1(key, "/external/other"), @"wrong root rejected");
         Require(!file_picker_directory_access_retain_v1("unknown", "/external/folder"), @"unknown token rejected");
